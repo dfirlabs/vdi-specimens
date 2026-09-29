@@ -1,0 +1,43 @@
+# Checks scripts.
+name: scripts
+on:
+  pull_request:
+  push:
+permissions: read-all
+jobs:
+  run_scripts_linux:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:26.04
+      options: --privileged
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+    - name: Set up container
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        apt-get update -q
+        apt-get install -y libterm-readline-gnu-perl locales software-properties-common
+        locale-gen en_US.UTF-8
+        ln -f -s /usr/share/zoneinfo/UTC /etc/localtime
+    - name: Install VirtualBox CLI Tools
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        apt-get install -y curl kmod libgsoap-2.8.* libvncserver1 libtpms0 libxml2-16
+        curl -o virtualbox.deb https://download.virtualbox.org/virtualbox/7.2.20/virtualbox-7.2_7.2.20-175154~Ubuntu~resolute_amd64.deb
+        dpkg --unpack virtualbox.deb
+        rm -f /var/lib/dpkg/info/virtualbox-7.2.postinst
+        dpkg --configure virtualbox-7.2 || true
+        apt-get --fix-broken install -y
+        VBoxManage --version
+    - name: Generate test data
+      env:
+        LANG: en_US.UTF-8
+      run: |
+        ./generate-specimens-linux.sh
+    - uses: actions/upload-artifact@v7
+      with:
+        name: specimens-linux
+        path: specimens/VBoxManage-*/*.vdi
